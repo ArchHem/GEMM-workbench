@@ -1,0 +1,60 @@
+include("../src/GEMM.jl")
+using .GEMM
+using Random, BenchmarkTools, LinearAlgebra, Plots, Statistics
+
+BLAS.set_num_threads(1)
+sizes = collect(4:16) .* 256
+
+times_j_median = zeros(length(sizes))
+times_j_mean = zeros(length(sizes))
+times_j_std = zeros(length(sizes))
+
+times_b_median = zeros(length(sizes))
+times_b_mean = zeros(length(sizes))
+times_b_std = zeros(length(sizes))
+
+for (i, N) in enumerate(sizes)
+    println(N)
+    A = randn(Float32, N, N)
+    B = randn(Float32, N, N)
+    C = randn(Float32, N, N)
+    
+    bmark_j = @benchmark fadd_GEMM!($C, $A, $B) samples=20
+    times_j_median[i] = median(bmark_j.times)
+    times_j_mean[i] = mean(bmark_j.times)
+    times_j_std[i] = std(bmark_j.times)
+
+    bmark_b = @benchmark mul!($C, $A, $B) samples=20
+    times_b_median[i] = median(bmark_b.times)
+    times_b_mean[i] = mean(bmark_b.times)
+    times_b_std[i] = std(bmark_b.times)
+end
+
+p1 = plot(xlabel="Matrix Size (N)",
+         ylabel="Time (ms)",
+         title="GEMM Benchmark vs BLAS mul!",
+         legend=:topleft, yscale = :log)
+
+scatter!(p1, sizes, times_j_mean ./ 1e6,
+         yerror=times_j_std ./ 1e6,
+         label="fadd_GEMM! (Mean ± SD)",
+         color=:purple, markersize = 2.2)
+
+scatter!(p1, sizes, times_b_mean ./ 1e6,
+         yerror=times_b_std ./ 1e6,
+         label="BLAS mul! (Mean ± SD)",
+         color=:green, markersize = 2.2)
+
+ratio = times_j_mean ./ times_b_mean
+p2 = plot(xlabel="Matrix Size (N)",
+          ylabel="Ratio (Custom / BLAS)",
+          legend=false)
+
+scatter!(p2, sizes, ratio, color=:blue, markersize=2.5)
+hline!(p2, [1.0], linestyle=:dash, color=:black)
+
+
+final_plot = plot(p1, p2, layout=(2, 1), link=:x, dpi = 600)
+
+savefig(final_plot, "./media/blas_comp.png")
+
