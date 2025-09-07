@@ -19,7 +19,7 @@ function naive_gemm!(C::AbstractMatrix{T}, A, B) where {T}
 end
 
 BLAS.set_num_threads(1)
-sizes = collect(1:32) .* 8
+sizes = collect(1:16) .* 64
 
 times_j_median = zeros(length(sizes))
 times_j_mean = zeros(length(sizes))
